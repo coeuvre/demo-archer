@@ -1,0 +1,4 @@
+let g:coeuvre_project_root = g:localvimrc_script_dir
+
+nnoremap <silent> <leader>br :VimuxRunCommand("cd " . g:coeuvre_project_root . g:coeuvre_shell_cmd_and . "clear" . g:coeuvre_shell_cmd_and . "love .")<cr>
+
