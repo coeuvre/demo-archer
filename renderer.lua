@@ -47,11 +47,11 @@ function _M.draw_texture2(texture, pos)
   love.graphics.pop()
 end
 
-function _M.draw_sprite(sprite, pos, sx)
+function _M.draw_sprite(sprite, pos, sx, sy, r)
   love.graphics.push()
 
   love.graphics.draw(sprite.texture.image, pos.x, pos.y + sprite.texture.height,
-                     0, sx, -1, sprite.anchor.x, -sprite.anchor.y)
+                     r or 0, sx, -1, sprite.anchor.x, sprite.anchor.y)
 
   love.graphics.pop()
 end

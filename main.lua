@@ -3,18 +3,22 @@ local renderer = require('renderer')
 
 local time = 0
 
-local archer_walk_speed = 2000
-local archer_run_speed = 5000
-
-local ARCHER_FACING_LEFT = 1
-local ARCHER_FACING_RIGHT = -1
+-- Consts
+local ARCHER_WALK_SPEED = 2000
+local ARCHER_RUN_SPEED = 5000
 local ARCHER_BRAKE_TIME_THRESHOLD = 0.2
+local ARROW_SPEED = 1500
+
+-- ArcherFacing enum
+local ArcherFacing_Left = 1
+local ArcherFacing_Right = -1
+
 local archer = {
   state = "idle",
 
   acc = cgmath.v2(),
   vel = cgmath.v2(),
-  pos = cgmath.v2(490, 75),
+  pos = cgmath.v2(490, 70),
 
   facing = 1,
 
@@ -25,6 +29,11 @@ local archer = {
   current_frame = 1,
   current_anim_finished = false,
 }
+
+local arrow_template = {
+}
+
+local arrows = {}
 
 local background = {}
 local clouds = {
@@ -49,7 +58,7 @@ function load_archer_anim(name, from, to, fps, loop)
 
   for i = from, to do
     local texture = renderer.load_texture2('assets/archer/' .. name .. i .. '.png')
-    local sprite = renderer.sprite_from_texture(texture, cgmath.bbox2(), cgmath.v2(48, 30))
+    local sprite = renderer.sprite_from_texture(texture, cgmath.bbox2(), cgmath.v2(48, -30))
     table.insert(anim.frames, sprite)
   end
 
@@ -72,6 +81,9 @@ function love.load()
   archer.anims.brake = load_archer_anim('brake', 1, 1, 0)
 
   archer.current_anim = 'idle'
+
+  local arrow_texture = renderer.load_texture2('assets/arrow.png')
+  arrow_template.sprite = renderer.sprite_from_texture(arrow_texture, cgmath.bbox2(), cgmath.v2(65, 50))
 end
 
 function love.keypressed(key)
@@ -101,7 +113,7 @@ function change_archer_state_to_walk(archer, facing)
 
   archer.facing = facing
   archer.state = 'walk'
-  archer.acc = cgmath.v2(archer.facing * archer_walk_speed, 0)
+  archer.acc = cgmath.v2(archer.facing * ARCHER_WALK_SPEED, 0)
   change_archer_anim_to(archer, 'walk')
 end
 
@@ -110,7 +122,7 @@ function change_archer_state_to_run(archer, facing)
 
   archer.facing = facing
   archer.state = 'run'
-  archer.acc = cgmath.v2(archer.facing * archer_run_speed, 0)
+  archer.acc = cgmath.v2(archer.facing * ARCHER_RUN_SPEED, 0)
   change_archer_anim_to(archer, 'run')
 end
 
@@ -127,21 +139,48 @@ function change_archer_state_to_charge(archer)
   change_archer_anim_to(archer, 'charge')
 end
 
+function add_arrow(archer)
+  local arrow = {}
+  arrow.sprite = arrow_template.sprite
+  arrow.pos = archer.pos + cgmath.v2(archer.facing * 32, -74)
+  arrow.facing = archer.facing
+  arrow.vel = ARROW_SPEED * cgmath.v2(arrow.facing, 0)
+  arrow.roration = 0
+  table.insert(arrows, arrow)
+end
+
+function add_arrow_up(archer)
+  local arrow = {}
+  arrow.sprite = arrow_template.sprite
+  arrow.pos = archer.pos + cgmath.v2(archer.facing * 20, -60)
+  arrow.facing = archer.facing
+
+  if arrow.facing == 1 then
+    arrow.roration = 0.82
+  else
+    arrow.roration = -0.82
+  end
+
+  arrow.vel = arrow.facing * ARROW_SPEED * cgmath.v2(math.cos(arrow.roration), math.sin(arrow.roration))
+
+  table.insert(arrows, arrow)
+end
+
 function love.update(dt)
   if archer.state == 'idle' then
     if love.keyboard.isDown('space') then
       change_archer_state_to_charge(archer)
     elseif love.keyboard.isDown('d') then
       if love.keyboard.isDown('lshift') then
-        change_archer_state_to_run(archer, ARCHER_FACING_LEFT)
+        change_archer_state_to_run(archer, ArcherFacing_Left)
       else
-        change_archer_state_to_walk(archer, ARCHER_FACING_LEFT)
+        change_archer_state_to_walk(archer, ArcherFacing_Left)
       end
     elseif love.keyboard.isDown('a') then
       if love.keyboard.isDown('lshift') then
-        change_archer_state_to_run(archer, ARCHER_FACING_RIGHT)
+        change_archer_state_to_run(archer, ArcherFacing_Right)
       else
-        change_archer_state_to_walk(archer, ARCHER_FACING_RIGHT)
+        change_archer_state_to_walk(archer, ArcherFacing_Right)
       end
     end
   elseif archer.state == 'walk' then
@@ -150,15 +189,15 @@ function love.update(dt)
     elseif not love.keyboard.isDown('a') and not love.keyboard.isDown('d') then
       change_archer_state_to_idle(archer)
     else
-      if archer.facing == ARCHER_FACING_LEFT then
+      if archer.facing == ArcherFacing_Left then
         if not love.keyboard.isDown('d') and love.keyboard.isDown('a') then
-          archer.acc = cgmath.v2(-archer_walk_speed, 0)
-          archer.facing = ARCHER_FACING_RIGHT
+          archer.acc = cgmath.v2(-ARCHER_WALK_SPEED, 0)
+          archer.facing = ArcherFacing_Right
         end
       else
         if not love.keyboard.isDown('a') and love.keyboard.isDown('d') then
-          archer.acc = cgmath.v2(archer_walk_speed, 0)
-          archer.facing = ARCHER_FACING_LEFT
+          archer.acc = cgmath.v2(ARCHER_WALK_SPEED, 0)
+          archer.facing = ArcherFacing_Left
         end
       end
 
@@ -205,12 +244,14 @@ function love.update(dt)
   elseif archer.state == 'charge' then
     if archer.current_anim_finished then
       if love.keyboard.isDown('a') then
-        archer.facing = ARCHER_FACING_RIGHT
+        archer.facing = ArcherFacing_Right
       elseif love.keyboard.isDown('d') then
-        archer.facing = ARCHER_FACING_LEFT
+        archer.facing = ArcherFacing_Left
       end
 
       if not love.keyboard.isDown('space') then
+        add_arrow(archer)
+
         archer.state = 'shoot'
         change_archer_anim_to(archer, 'shoot')
       end
@@ -222,19 +263,21 @@ function love.update(dt)
     end
   elseif archer.state == 'charge_up' then
     if love.keyboard.isDown('a') then
-      archer.facing = ARCHER_FACING_RIGHT
+      archer.facing = ArcherFacing_Right
     elseif love.keyboard.isDown('d') then
-      archer.facing = ARCHER_FACING_LEFT
+      archer.facing = ArcherFacing_Left
     end
 
-    if not love.keyboard.isDown('space') then
+    if love.keyboard.isDown('space') then
+      if not love.keyboard.isDown('w') then
+        archer.state = 'charge'
+        change_archer_anim_to(archer, 'charge', 2)
+      end
+    else
+      add_arrow_up(archer)
+
       archer.state = 'shoot_up'
       change_archer_anim_to(archer, 'shoot_up')
-    end
-
-    if not love.keyboard.isDown('w') then
-      archer.state = 'charge'
-      change_archer_anim_to(archer, 'charge', 2)
     end
   elseif archer.state == 'shoot' then
     if archer.current_anim_finished then
@@ -274,6 +317,10 @@ function love.update(dt)
     end
     archer.current_frame = frame
   end
+
+  for _, arrow in pairs(arrows) do
+    arrow.pos = arrow.pos + dt * arrow.vel;
+  end
 end
 
 function love.draw()
@@ -291,4 +338,8 @@ function love.draw()
   local anim = archer.anims[archer.current_anim]
   local frame = math.floor(archer.current_frame)
   renderer.draw_sprite(anim.frames[frame], archer.pos, archer.facing)
+
+  for _, arrow in pairs(arrows) do
+    renderer.draw_sprite(arrow.sprite, arrow.pos, arrow.facing, 1, arrow.roration)
+  end
 end
