@@ -14,7 +14,7 @@ local archer = {
 
   acc = cgmath.v2(),
   vel = cgmath.v2(),
-  pos = cgmath.v2(200, 75),
+  pos = cgmath.v2(490, 75),
 
   facing = 1,
 
@@ -36,7 +36,7 @@ local clouds = {
   }
 }
 
-function load_archer_anim(name, from, to, loop)
+function load_archer_anim(name, from, to, fps, loop)
   if loop == nil then
     loop = true
   end
@@ -44,7 +44,9 @@ function load_archer_anim(name, from, to, loop)
   local anim = {
     frames = {},
     loop = loop,
+    fps = fps,
   }
+
   for i = from, to do
     local texture = renderer.load_texture2('assets/archer/' .. name .. i .. '.png')
     local sprite = renderer.sprite_from_texture(texture, cgmath.bbox2(), cgmath.v2(48, 30))
@@ -60,12 +62,14 @@ function love.load()
     table.insert(background, texture)
   end
 
-  archer.anims.idle = load_archer_anim('idle', 1, 4)
-  archer.anims.charge = load_archer_anim('shoot', 1, 2, false)
-  archer.anims.shoot = load_archer_anim('shoot', 3, 5, false)
-  archer.anims.walk = load_archer_anim('walk', 1, 4)
-  archer.anims.run = load_archer_anim('run', 1, 4)
-  archer.anims.brake = load_archer_anim('brake', 1, 1)
+  archer.anims.idle = load_archer_anim('idle', 1, 4, 4)
+  archer.anims.walk = load_archer_anim('walk', 1, 4, 6)
+  archer.anims.run = load_archer_anim('run', 1, 4, 10)
+  archer.anims.charge = load_archer_anim('shoot', 1, 2, 6, false)
+  archer.anims.shoot = load_archer_anim('shoot', 3, 5, 8, false)
+  archer.anims.charge_up = load_archer_anim('shoot-up', 1, 1, 0, false)
+  archer.anims.shoot_up = load_archer_anim('shoot-up', 2, 4, 8, false)
+  archer.anims.brake = load_archer_anim('brake', 1, 1, 0)
 
   archer.current_anim = 'idle'
 end
@@ -76,9 +80,10 @@ function love.keypressed(key)
   end
 end
 
-function change_archer_anim_to(archer, anim)
+function change_archer_anim_to(archer, anim, frame)
+  frame = frame or 1
   if archer.current_anim ~= anim then
-    archer.current_frame = 1
+    archer.current_frame = frame
     archer.current_anim_finished = false
   end
   archer.current_anim = anim
@@ -199,12 +204,43 @@ function love.update(dt)
     end
   elseif archer.state == 'charge' then
     if archer.current_anim_finished then
+      if love.keyboard.isDown('a') then
+        archer.facing = ARCHER_FACING_RIGHT
+      elseif love.keyboard.isDown('d') then
+        archer.facing = ARCHER_FACING_LEFT
+      end
+
       if not love.keyboard.isDown('space') then
         archer.state = 'shoot'
         change_archer_anim_to(archer, 'shoot')
       end
+
+      if love.keyboard.isDown('w') then
+        archer.state = 'charge_up'
+        change_archer_anim_to(archer, 'charge_up')
+      end
+    end
+  elseif archer.state == 'charge_up' then
+    if love.keyboard.isDown('a') then
+      archer.facing = ARCHER_FACING_RIGHT
+    elseif love.keyboard.isDown('d') then
+      archer.facing = ARCHER_FACING_LEFT
+    end
+
+    if not love.keyboard.isDown('space') then
+      archer.state = 'shoot_up'
+      change_archer_anim_to(archer, 'shoot_up')
+    end
+
+    if not love.keyboard.isDown('w') then
+      archer.state = 'charge'
+      change_archer_anim_to(archer, 'charge', 2)
     end
   elseif archer.state == 'shoot' then
+    if archer.current_anim_finished then
+      change_archer_state_to_idle(archer)
+    end
+  elseif archer.state == 'shoot_up' then
     if archer.current_anim_finished then
       change_archer_state_to_idle(archer)
     end
@@ -226,11 +262,11 @@ function love.update(dt)
     archer.pos = archer.pos + archer_dp
     archer.vel = archer.vel + dt * acc
 
-    local frame = archer.current_frame + 6 * dt
     local anim = archer.anims[archer.current_anim]
-    if frame > #anim.frames then
+    local frame = archer.current_frame +  anim.fps * dt
+    if frame >= #anim.frames + 1 then
       if anim.loop then
-        frame = (frame % #anim.frames) + 1
+        frame = frame - #anim.frames
       else
         frame = #anim.frames
         archer.current_anim_finished = true
