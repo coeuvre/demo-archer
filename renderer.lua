@@ -37,12 +37,23 @@ function _M.setup_coord()
 end
 
 function _M.draw_texture2(texture, pos)
-  love.graphics.draw(texture.image, pos.x, pos.y + texture.height, 0, 1, -1)
+  love.graphics.push()
+
+  love.graphics.translate(0, texture.height)
+  love.graphics.scale(1, -1)
+
+  love.graphics.draw(texture.image, pos.x, pos.y)
+
+  love.graphics.pop()
 end
 
-function _M.draw_sprite(sprite, pos)
-  local pos = pos - sprite.anchor
-  love.graphics.draw(sprite.texture.image, pos.x, pos.y + sprite.texture.height, 0, 1, -1)
+function _M.draw_sprite(sprite, pos, sx)
+  love.graphics.push()
+
+  love.graphics.draw(sprite.texture.image, pos.x, pos.y + sprite.texture.height,
+                     0, sx, -1, sprite.anchor.x, -sprite.anchor.y)
+
+  love.graphics.pop()
 end
 
 return _M

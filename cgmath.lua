@@ -14,6 +14,14 @@ function v2.__sub(a, b)
   return _M.v2(a.x - b.x, a.y - b.y)
 end
 
+function v2.__mul(a, b)
+  if type(a) == "number" then
+    return _M.v2(a * b.x, a * b.y)
+  else
+    return _M.v2(a.x * b, a.y * b)
+  end
+end
+
 function _M.v2(x, y)
   local result = setmetatable({ x = x or 0, y = y or 0 }, v2)
 
